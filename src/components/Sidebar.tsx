@@ -1,5 +1,5 @@
 
-import { Home, Users, Calendar, QrCode, Settings, LogOut } from "lucide-react";
+import { Home, Users, Calendar, QrCode, Settings, LogOut, BookOpen, UserPlus } from "lucide-react";
 import { Sidebar as SidebarComponent, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,8 @@ const menuItems = [
   { title: "Users", icon: Users, path: "/users" },
   { title: "Attendance", icon: Calendar, path: "/attendance" },
   { title: "Student Credential Center", icon: QrCode, path: "/credentials" },
+  { title: "Routine Management", icon: BookOpen, path: "/routine" },
+  { title: "Student Registration", icon: UserPlus, path: "/registration" },
   { title: "Settings", icon: Settings, path: "/settings" },
 ];
 

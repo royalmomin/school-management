@@ -7,6 +7,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Attendance from "./pages/Attendance";
 import Credentials from "./pages/Credentials";
+import Users from "./pages/Users";
+import Registration from "./pages/Registration";
+import Routine from "./pages/Routine";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +24,9 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/credentials" element={<Credentials />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/registration" element={<Registration />} />
+          <Route path="/routine" element={<Routine />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
