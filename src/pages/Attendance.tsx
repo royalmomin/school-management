@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Input } from "@/components/ui/input";
@@ -51,16 +50,16 @@ const tabs = [
 const Attendance = () => {
   const [activeTab, setActiveTab] = useState("manual");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClass, setSelectedClass] = useState<string>("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>("all");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = !selectedClass || student.class === selectedClass;
-    const matchesSection = !selectedSection || student.section === selectedSection;
+    const matchesClass = selectedClass === "all" || student.class === selectedClass;
+    const matchesSection = selectedSection === "all" || student.section === selectedSection;
     return matchesSearch && matchesClass && matchesSection;
   });
 
@@ -172,7 +171,7 @@ const Attendance = () => {
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
+                    <SelectItem value="all">All Classes</SelectItem>
                     {classes.map((c) => (
                       <SelectItem key={c} value={c}>
                         Class {c}
@@ -185,7 +184,7 @@ const Attendance = () => {
                     <SelectValue placeholder="Select Section" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Sections</SelectItem>
+                    <SelectItem value="all">All Sections</SelectItem>
                     {sections.map((s) => (
                       <SelectItem key={s} value={s}>
                         Section {s}
