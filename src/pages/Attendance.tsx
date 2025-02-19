@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { QrReader } from "react-qr-reader";
+import QrScanner from 'react-qr-scanner';
 
 interface Student {
   id: string;
@@ -94,16 +94,15 @@ const Attendance = () => {
     });
   };
 
-  const handleQrCodeScan = (result: any) => {
-    if (result) {
-      const scannedData = result?.text;
-      const studentId = scannedData.split("-")[2]; // Assuming QR format: class-section-id
-      if (studentId) {
-        markAttendance(studentId, "present");
-        setIsScanning(false);
-      }
+  const handleScan = (data: any) => {
+    if (data) {
+      console.log('Scanned data:', data)
     }
-  };
+  }
+
+  const handleError = (err: any) => {
+    console.error(err)
+  }
 
   const simulateBiometricScan = () => {
     toast({
@@ -257,10 +256,11 @@ const Attendance = () => {
             <div className="text-center">
               {isScanning ? (
                 <div className="max-w-md mx-auto">
-                  <QrReader
-                    constraints={{ facingMode: "environment" }}
-                    onResult={handleQrCodeScan}
-                    className="w-full"
+                  <QrScanner
+                    delay={300}
+                    onError={handleError}
+                    onScan={handleScan}
+                    style={{ width: '100%' }}
                   />
                   <Button
                     className="mt-4"
