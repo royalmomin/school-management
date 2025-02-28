@@ -1,10 +1,14 @@
+
 import { useState } from "react";
 import Layout from "@/components/Layout";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, QrCode, Fingerprint, Wifi, Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon, Check, X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useData } from "@/contexts/DataContext";
 import {
   Select,
   SelectContent,
@@ -12,291 +16,230 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import QrScanner from 'react-qr-scanner';
-
-interface Student {
-  id: string;
-  name: string;
-  class: string;
-  section: string;
-  markedAt?: string;
-  status?: "present" | "absent";
-}
-
-interface AttendanceRecord {
-  date: string;
-  studentId: string;
-  status: "present" | "absent";
-}
-
-const students: Student[] = [
-  { id: "1", name: "John Doe", class: "10", section: "A" },
-  { id: "2", name: "Jane Smith", class: "10", section: "A" },
-  { id: "3", name: "Mike Johnson", class: "10", section: "B" },
-  { id: "4", name: "Sarah Williams", class: "11", section: "A" },
-  { id: "5", name: "Tom Brown", class: "11", section: "B" },
-];
-
-const classes = ["10", "11", "12"];
-const sections = ["A", "B", "C"];
-
-const tabs = [
-  { id: "manual", label: "Manual Entry", icon: Search },
-  { id: "qr", label: "QR Scanner", icon: QrCode },
-  { id: "biometric", label: "Biometric", icon: Fingerprint },
-  { id: "rfid", label: "RFID", icon: Wifi },
-];
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const Attendance = () => {
-  const [activeTab, setActiveTab] = useState("manual");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClass, setSelectedClass] = useState<string>("all");
-  const [selectedSection, setSelectedSection] = useState<string>("all");
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const { students, attendanceRecords, markAttendance } = useData();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedSection, setSelectedSection] = useState<string>("");
   const { toast } = useToast();
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = selectedClass === "all" || student.class === selectedClass;
-    const matchesSection = selectedSection === "all" || student.section === selectedSection;
-    return matchesSearch && matchesClass && matchesSection;
+  // Get all classes and sections from students
+  const classes = [...new Set(students.map(student => student.class))].sort();
+  const sections = selectedClass 
+    ? [...new Set(students
+        .filter(student => student.class === selectedClass)
+        .map(student => student.section))].sort()
+    : [];
+  
+  // Filter students by selected class and section
+  const filteredStudents = students.filter(student => {
+    if (selectedClass && student.class !== selectedClass) return false;
+    if (selectedSection && student.section !== selectedSection) return false;
+    return true;
   });
 
-  const markAttendance = (studentId: string, status: "present" | "absent") => {
-    const record: AttendanceRecord = {
-      date: new Date().toISOString().split('T')[0],
-      studentId,
-      status,
-    };
-
-    setAttendanceRecords((prev) => {
-      const filtered = prev.filter(
-        (r) => !(r.date === record.date && r.studentId === record.studentId)
-      );
-      return [...filtered, record];
-    });
-
-    const student = students.find((s) => s.id === studentId);
-    toast({
-      title: `${student?.name} marked ${status}`,
-      description: `Attendance recorded for ${new Date().toLocaleDateString()}`,
-    });
+  const formatDate = (date: Date | undefined) => {
+    return date ? format(date, "yyyy-MM-dd") : "";
   };
-
-  const markAllPresent = () => {
-    filteredStudents.forEach((student) => {
-      markAttendance(student.id, "present");
-    });
-    toast({
-      title: "Batch Attendance",
-      description: `Marked ${filteredStudents.length} students present`,
-    });
+  
+  const formattedDate = formatDate(selectedDate);
+  
+  const getAttendanceStatus = (studentId: string) => {
+    const record = attendanceRecords.find(
+      record => record.studentId === studentId && record.date === formattedDate
+    );
+    return record ? record.present : null;
   };
-
-  const handleScan = (data: any) => {
-    if (data) {
-      console.log('Scanned data:', data)
+  
+  const handleMarkAttendance = (studentId: string, present: boolean) => {
+    if (!selectedDate) {
+      toast({
+        title: "Error",
+        description: "Please select a date first",
+        variant: "destructive",
+      });
+      return;
     }
-  }
-
-  const handleError = (err: any) => {
-    console.error(err)
-  }
-
-  const simulateBiometricScan = () => {
+    
+    markAttendance(studentId, formattedDate, present);
+    
     toast({
-      title: "Scanning Fingerprint",
-      description: "Please place your finger on the scanner",
+      title: "Success",
+      description: `Attendance marked as ${present ? "present" : "absent"}`,
     });
-    // Simulated biometric scanning
-    setTimeout(() => {
-      const randomStudent = students[Math.floor(Math.random() * students.length)];
-      markAttendance(randomStudent.id, "present");
-    }, 2000);
   };
-
-  const simulateRFIDScan = () => {
-    toast({
-      title: "Scanning RFID Card",
-      description: "Please tap your card on the reader",
+  
+  const markAllPresent = () => {
+    if (!selectedDate) return;
+    
+    filteredStudents.forEach(student => {
+      markAttendance(student.id, formattedDate, true);
     });
-    // Simulated RFID scanning
-    setTimeout(() => {
-      const randomStudent = students[Math.floor(Math.random() * students.length)];
-      markAttendance(randomStudent.id, "present");
-    }, 1000);
+    
+    toast({
+      title: "Success",
+      description: "All students marked as present",
+    });
+  };
+  
+  const saveAttendance = () => {
+    toast({
+      title: "Success",
+      description: "Attendance saved successfully",
+    });
   };
 
   return (
     <Layout>
       <div className="space-y-6 fade-in">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-          <p className="text-gray-500 mt-2">Mark and manage student attendance</p>
+          <h1 className="text-3xl font-bold tracking-tight">Attendance Management</h1>
+          <p className="text-gray-500 mt-2">Track and manage student attendance</p>
         </div>
 
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Attendance Management</h2>
-          
-          <div className="flex space-x-4 mb-6">
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? "default" : "outline"}
-                className="flex items-center gap-2"
-                onClick={() => setActiveTab(tab.id)}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="w-full md:w-1/3 space-y-2">
+              <label className="text-sm font-medium">Select Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : "Select a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="w-full md:w-1/3 space-y-2">
+              <label className="text-sm font-medium">Select Class</label>
+              <Select
+                value={selectedClass}
+                onValueChange={(value) => {
+                  setSelectedClass(value);
+                  setSelectedSection("");
+                }}
               >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </Button>
-            ))}
+                <SelectTrigger>
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Classes</SelectItem>
+                  {classes.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      Class {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full md:w-1/3 space-y-2">
+              <label className="text-sm font-medium">Select Section</label>
+              <Select
+                value={selectedSection}
+                onValueChange={setSelectedSection}
+                disabled={!selectedClass}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Sections" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Sections</SelectItem>
+                  {sections.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      Section {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {activeTab === "manual" && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search students..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
-                    {classes.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        Class {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sections</SelectItem>
-                    {sections.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        Section {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={markAllPresent}>Mark All Present</Button>
-              </div>
+          <div className="flex justify-between mb-6">
+            <Button onClick={markAllPresent} variant="outline">
+              Mark All Present
+            </Button>
+            <Button onClick={saveAttendance}>Save Attendance</Button>
+          </div>
 
-              <div className="space-y-4">
-                {filteredStudents.map((student) => {
-                  const todayRecord = attendanceRecords.find(
-                    (r) => 
-                      r.studentId === student.id && 
-                      r.date === new Date().toISOString().split('T')[0]
-                  );
-
-                  return (
-                    <div
-                      key={student.id}
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border"
-                    >
-                      <div>
-                        <h3 className="font-medium">{student.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          Class {student.class} - Section {student.section}
-                        </p>
-                        {todayRecord && (
-                          <p className="text-xs text-gray-400">
-                            Marked {todayRecord.status} at{" "}
-                            {new Date().toLocaleTimeString()}
-                          </p>
+          <div className="border rounded-lg">
+            <div className="grid grid-cols-12 font-medium p-4 border-b bg-gray-50">
+              <div className="col-span-1">#</div>
+              <div className="col-span-5">Student</div>
+              <div className="col-span-2">Class</div>
+              <div className="col-span-4 text-center">Attendance</div>
+            </div>
+            <div className="divide-y">
+              {filteredStudents.map((student, index) => {
+                const attendanceStatus = getAttendanceStatus(student.id);
+                
+                return (
+                  <div key={student.id} className="grid grid-cols-12 p-4 items-center">
+                    <div className="col-span-1 text-gray-500">{index + 1}</div>
+                    <div className="col-span-5 flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        {student.photo ? (
+                          <AvatarImage src={student.photo} alt={student.name} />
+                        ) : (
+                          <AvatarFallback className="text-xs">
+                            {student.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
                         )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          className={`${
-                            todayRecord?.status === "present"
-                              ? "bg-green-100 hover:bg-green-200"
-                              : "bg-green-50 hover:bg-green-100"
-                          } text-green-600 border-green-200`}
-                          onClick={() => markAttendance(student.id, "present")}
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          Present
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className={`${
-                            todayRecord?.status === "absent"
-                              ? "bg-red-100 hover:bg-red-200"
-                              : "bg-red-50 hover:bg-red-100"
-                          } text-red-600 border-red-200`}
-                          onClick={() => markAttendance(student.id, "absent")}
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Absent
-                        </Button>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{student.name}</div>
+                        <div className="text-sm text-gray-500">ID: {student.id}</div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "qr" && (
-            <div className="text-center">
-              {isScanning ? (
-                <div className="max-w-md mx-auto">
-                  <QrScanner
-                    delay={300}
-                    onError={handleError}
-                    onScan={handleScan}
-                    style={{ width: '100%' }}
-                  />
-                  <Button
-                    className="mt-4"
-                    variant="outline"
-                    onClick={() => setIsScanning(false)}
-                  >
-                    Stop Scanning
-                  </Button>
-                </div>
-              ) : (
-                <div className="py-12">
-                  <Button onClick={() => setIsScanning(true)}>
-                    Start QR Scanner
-                  </Button>
+                    <div className="col-span-2">
+                      Class {student.class}-{student.section}
+                    </div>
+                    <div className="col-span-4 flex justify-center gap-4">
+                      <Button
+                        onClick={() => handleMarkAttendance(student.id, true)}
+                        variant={attendanceStatus === true ? "default" : "outline"}
+                        size="sm"
+                        className={attendanceStatus === true ? "bg-green-500 hover:bg-green-600" : ""}
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Present
+                      </Button>
+                      <Button
+                        onClick={() => handleMarkAttendance(student.id, false)}
+                        variant={attendanceStatus === false ? "default" : "outline"}
+                        size="sm"
+                        className={attendanceStatus === false ? "bg-red-500 hover:bg-red-600" : ""}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Absent
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredStudents.length === 0 && (
+                <div className="p-8 text-center text-gray-500">
+                  No students found. Please select a different class or section.
                 </div>
               )}
             </div>
-          )}
-
-          {activeTab === "biometric" && (
-            <div className="text-center py-12">
-              <Button onClick={simulateBiometricScan}>
-                <Fingerprint className="w-4 h-4 mr-2" />
-                Scan Fingerprint
-              </Button>
-            </div>
-          )}
-
-          {activeTab === "rfid" && (
-            <div className="text-center py-12">
-              <Button onClick={simulateRFIDScan}>
-                <Wifi className="w-4 h-4 mr-2" />
-                Scan RFID Card
-              </Button>
-            </div>
-          )}
+          </div>
         </Card>
       </div>
     </Layout>

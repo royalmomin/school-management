@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload, Pencil, Trash } from "lucide-react";
+import { useData } from "@/contexts/DataContext";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -22,19 +24,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-interface Student {
-  id: string;
-  name: string;
-  class: string;
-  section: string;
-  parentName: string;
-  parentEmail: string;
-  registrationDate: string;
-  photo?: string;
-}
-
 const Registration = () => {
-  const [students, setStudents] = useState<Student[]>([]);
+  const { students, addStudent, updateStudent, deleteStudent } = useData();
   const [newStudent, setNewStudent] = useState({
     name: "",
     class: "",
@@ -43,19 +34,12 @@ const Registration = () => {
     parentEmail: "",
     photo: "",
   });
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
-
-  const generateStudentId = (classNum: string) => {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const classPrefix = classNum.padStart(2, "0");
-    const sequence = (students.length + 1).toString().padStart(3, "0");
-    return `${year}${classPrefix}${sequence}`;
-  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing = false) => {
     const file = e.target.files?.[0];
@@ -82,13 +66,10 @@ const Registration = () => {
       return;
     }
 
-    const student: Student = {
-      id: generateStudentId(newStudent.class),
-      ...newStudent,
-      registrationDate: new Date().toISOString(),
-    };
+    // Use the context to add a new student
+    const student = addStudent(newStudent);
 
-    setStudents([...students, student]);
+    // Reset form
     setNewStudent({
       name: "",
       class: "",
@@ -97,13 +78,14 @@ const Registration = () => {
       parentEmail: "",
       photo: "",
     });
+    
     toast({
       title: "Success",
       description: `Student registered successfully with ID: ${student.id}`,
     });
   };
 
-  const handleEditClick = (student: Student) => {
+  const handleEditClick = (student: any) => {
     setEditingStudent(student);
     setIsEditDialogOpen(true);
   };
@@ -120,11 +102,9 @@ const Registration = () => {
       return;
     }
 
-    setStudents(
-      students.map((student) =>
-        student.id === editingStudent.id ? editingStudent : student
-      )
-    );
+    // Use context to update student
+    updateStudent(editingStudent);
+    
     setIsEditDialogOpen(false);
     setEditingStudent(null);
     toast({
@@ -140,7 +120,9 @@ const Registration = () => {
   const confirmDelete = () => {
     if (!confirmDeleteId) return;
 
-    setStudents(students.filter((student) => student.id !== confirmDeleteId));
+    // Use context to delete student
+    deleteStudent(confirmDeleteId);
+    
     setConfirmDeleteId(null);
     toast({
       title: "Success",
@@ -314,7 +296,7 @@ const Registration = () => {
                       <AvatarImage src={editingStudent.photo} alt={editingStudent.name} />
                     ) : (
                       <AvatarFallback className="text-lg bg-slate-100">
-                        {editingStudent.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {editingStudent.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     )}
                   </Avatar>

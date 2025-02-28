@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { DataProvider } from "@/contexts/DataContext";
 import Index from "./pages/Index";
 import Attendance from "./pages/Attendance";
 import Credentials from "./pages/Credentials";
@@ -17,19 +18,21 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/attendance" element={<Attendance />} />
-          <Route path="/credentials" element={<Credentials />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/registration" element={<Registration />} />
-          <Route path="/routine" element={<Routine />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <DataProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/credentials" element={<Credentials />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/registration" element={<Registration />} />
+            <Route path="/routine" element={<Routine />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </DataProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
