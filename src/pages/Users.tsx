@@ -13,11 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type UserRole = "admin" | "teacher" | "parent";
+
 interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "teacher" | "parent";
+  role: UserRole;
   status: "active" | "inactive";
 }
 
@@ -34,7 +36,7 @@ const Users = () => {
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
-    role: "teacher" as const,
+    role: "teacher" as UserRole,
   });
   const { toast } = useToast();
 
@@ -98,7 +100,7 @@ const Users = () => {
             />
             <Select
               value={newUser.role}
-              onValueChange={(value: "admin" | "teacher" | "parent") =>
+              onValueChange={(value: UserRole) =>
                 setNewUser({ ...newUser, role: value })
               }
             >
