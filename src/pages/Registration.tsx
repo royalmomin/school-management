@@ -210,6 +210,11 @@ const Registration = () => {
                 </div>
               </div>
             ))}
+            {students.length === 0 && (
+              <p className="text-gray-500 text-center py-4">
+                No students registered yet
+              </p>
+            )}
           </div>
         </Card>
       </div>
