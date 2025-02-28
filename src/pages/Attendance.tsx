@@ -2,79 +2,45 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { CalendarIcon, Check, X } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Search, CheckCircle2, XCircle, QrCode, Fingerprint, Wifi } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { useData } from "@/contexts/DataContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { format } from "date-fns";
+import type { Student } from "@/contexts/DataContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Attendance = () => {
-  const { students, attendanceRecords, markAttendance } = useData();
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedClass, setSelectedClass] = useState<string>("");
-  const [selectedSection, setSelectedSection] = useState<string>("");
+  const { students, markAttendance, attendanceRecords } = useData();
   const { toast } = useToast();
+  const formattedDate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
 
-  // Get all classes and sections from students
-  const classes = [...new Set(students.map(student => student.class))].sort();
-  const sections = selectedClass 
-    ? [...new Set(students
-        .filter(student => student.class === selectedClass)
-        .map(student => student.section))].sort()
-    : [];
-  
-  // Filter students by selected class and section
-  const filteredStudents = students.filter(student => {
-    if (selectedClass && student.class !== selectedClass) return false;
-    if (selectedSection && student.section !== selectedSection) return false;
-    return true;
-  });
-
-  const formatDate = (date: Date | undefined) => {
-    return date ? format(date, "yyyy-MM-dd") : "";
-  };
-  
-  const formattedDate = formatDate(selectedDate);
-  
-  const getAttendanceStatus = (studentId: string) => {
-    const record = attendanceRecords.find(
-      record => record.studentId === studentId && record.date === formattedDate
+  const filteredStudents = students.filter(
+    (student) =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.class.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const isPresent = (studentId: string) => {
+    return attendanceRecords.some(
+      record => record.studentId === studentId && 
+      record.date === formattedDate && 
+      record.present
     );
-    return record ? record.present : null;
   };
-  
-  const handleMarkAttendance = (studentId: string, present: boolean) => {
-    if (!selectedDate) {
-      toast({
-        title: "Error",
-        description: "Please select a date first",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  const handleAttendanceToggle = (studentId: string) => {
+    const present = !isPresent(studentId);
     markAttendance(studentId, formattedDate, present);
     
     toast({
-      title: "Success",
-      description: `Attendance marked as ${present ? "present" : "absent"}`,
+      title: present ? "Marked Present" : "Marked Absent",
+      description: `Attendance updated successfully`,
     });
   };
-  
   const markAllPresent = () => {
     if (!selectedDate) return;
     
@@ -87,14 +53,6 @@ const Attendance = () => {
       description: "All students marked as present",
     });
   };
-  
-  const saveAttendance = () => {
-    toast({
-      title: "Success",
-      description: "Attendance saved successfully",
-    });
-  };
-
   return (
     <Layout>
       <div className="space-y-6 fade-in">
@@ -103,144 +61,125 @@ const Attendance = () => {
           <p className="text-gray-500 mt-2">Track and manage student attendance</p>
         </div>
 
-        <Card className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="w-full md:w-1/3 space-y-2">
-              <label className="text-sm font-medium">Select Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Select a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+        <Tabs defaultValue="manual" className="w-full">
+          <TabsList className="grid grid-cols-4 gap-4 mb-6">
+            <TabsTrigger value="manual" className="w-full">
+              Manual Entry
+            </TabsTrigger>
+            <TabsTrigger value="qr" className="w-full">
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Scanner
+            </TabsTrigger>
+            <TabsTrigger value="biometric" className="w-full">
+              <Fingerprint className="h-4 w-4 mr-2" />
+              Biometric
+            </TabsTrigger>
+            <TabsTrigger value="rfid" className="w-full">
+              <Wifi className="h-4 w-4 mr-2" />
+              RFID
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="manual">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Card className="p-6">
+                  <div className="space-y-6">
+                    <div className="flex gap-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Search students..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <Button onClick={markAllPresent}>Mark All Present</Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {filteredStudents.map((student) => (
+                        <div
+                          key={student.id}
+                          className="p-4 rounded-lg border flex justify-between items-center hover:bg-gray-50"
+                        >
+                          <div>
+                            <h3 className="font-medium">{student.name}</h3>
+                            <p className="text-sm text-gray-500">
+                              Class: {student.class} | ID: {student.id}
+                            </p>
+                          </div>
+                          <Button
+                            variant={isPresent(student.id) ? "default" : "outline"}
+                            onClick={() => handleAttendanceToggle(student.id)}
+                          >
+                            {isPresent(student.id) ? (
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                            ) : (
+                              <XCircle className="h-4 w-4 mr-2" />
+                            )}
+                            {isPresent(student.id) ? "Present" : "Absent"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              <div className="lg:col-span-1">
+                <Card className="p-6">
+                  <h2 className="font-semibold mb-4">Select Date</h2>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    initialFocus
+                    className="rounded-md border"
                   />
-                </PopoverContent>
-              </Popover>
+                </Card>
+              </div>
             </div>
+          </TabsContent>
 
-            <div className="w-full md:w-1/3 space-y-2">
-              <label className="text-sm font-medium">Select Class</label>
-              <Select
-                value={selectedClass}
-                onValueChange={(value) => {
-                  setSelectedClass(value);
-                  setSelectedSection("");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Classes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Classes</SelectItem>
-                  {classes.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      Class {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <TabsContent value="qr">
+            <Card className="p-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-4">QR Code Scanner</h2>
+                <p className="text-gray-500 mb-4">Scan student QR codes to mark attendance</p>
+                <Button>
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Start Scanning
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
 
-            <div className="w-full md:w-1/3 space-y-2">
-              <label className="text-sm font-medium">Select Section</label>
-              <Select
-                value={selectedSection}
-                onValueChange={setSelectedSection}
-                disabled={!selectedClass}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Sections" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Sections</SelectItem>
-                  {sections.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      Section {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <TabsContent value="biometric">
+            <Card className="p-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-4">Biometric Attendance</h2>
+                <p className="text-gray-500 mb-4">Use fingerprint scanner to mark attendance</p>
+                <Button>
+                  <Fingerprint className="h-4 w-4 mr-2" />
+                  Initialize Scanner
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
 
-          <div className="flex justify-between mb-6">
-            <Button onClick={markAllPresent} variant="outline">
-              Mark All Present
-            </Button>
-            <Button onClick={saveAttendance}>Save Attendance</Button>
-          </div>
-
-          <div className="border rounded-lg">
-            <div className="grid grid-cols-12 font-medium p-4 border-b bg-gray-50">
-              <div className="col-span-1">#</div>
-              <div className="col-span-5">Student</div>
-              <div className="col-span-2">Class</div>
-              <div className="col-span-4 text-center">Attendance</div>
-            </div>
-            <div className="divide-y">
-              {filteredStudents.map((student, index) => {
-                const attendanceStatus = getAttendanceStatus(student.id);
-                
-                return (
-                  <div key={student.id} className="grid grid-cols-12 p-4 items-center">
-                    <div className="col-span-1 text-gray-500">{index + 1}</div>
-                    <div className="col-span-5 flex items-center gap-3">
-                      <Avatar className="w-8 h-8">
-                        {student.photo ? (
-                          <AvatarImage src={student.photo} alt={student.name} />
-                        ) : (
-                          <AvatarFallback className="text-xs">
-                            {student.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{student.name}</div>
-                        <div className="text-sm text-gray-500">ID: {student.id}</div>
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      Class {student.class}-{student.section}
-                    </div>
-                    <div className="col-span-4 flex justify-center gap-4">
-                      <Button
-                        onClick={() => handleMarkAttendance(student.id, true)}
-                        variant={attendanceStatus === true ? "default" : "outline"}
-                        size="sm"
-                        className={attendanceStatus === true ? "bg-green-500 hover:bg-green-600" : ""}
-                      >
-                        <Check className="w-4 h-4 mr-1" /> Present
-                      </Button>
-                      <Button
-                        onClick={() => handleMarkAttendance(student.id, false)}
-                        variant={attendanceStatus === false ? "default" : "outline"}
-                        size="sm"
-                        className={attendanceStatus === false ? "bg-red-500 hover:bg-red-600" : ""}
-                      >
-                        <X className="w-4 h-4 mr-1" /> Absent
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {filteredStudents.length === 0 && (
-                <div className="p-8 text-center text-gray-500">
-                  No students found. Please select a different class or section.
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
+          <TabsContent value="rfid">
+            <Card className="p-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-4">RFID Scanner</h2>
+                <p className="text-gray-500 mb-4">Scan RFID cards to mark attendance</p>
+                <Button>
+                  <Wifi className="h-4 w-4 mr-2" />
+                  Start RFID Scanner
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
